@@ -1,39 +1,52 @@
-import json
-import jsonpickle
-import pickle
+# -*- coding: utf-8 -*-
+"""
+"""
 
-from flask import Flask,request,app,jsonify,url_for,render_template
+# 1. Library imports
+import uvicorn
+from fastapi import FastAPI
+from Churn import Churn
 import numpy as np
+import pickle
 import pandas as pd
-
-app=Flask(__name__)
-
-## Load the model
+# 2. Create the app object
+app = FastAPI()
 model=pickle.load(open('trained_pipeline_BRF(2).pkl','rb'))
-data = ['0', 'No', 'No', '41', 'Yes', 'No', 'No', 'No', 'No', 'No', 'No',
-        'No', 'Month-to-month', 'Yes', 'Bank transfer (automatic)',
-        '25.25', '996.45']
-data = np.array(data).reshape(1,-1)
-output = model.predict(data)
 
 
+# 3. Index route, opens automatically on http://127.0.0.1:8000
+@app.get('/')
+def index():
+    return {'message': 'Hello, World'}
 
-@app.route('/')
-def home():
-    return "hello"
+# 4. Route with a single parameter, returns the parameter within a message
+#    Located at: http://127.0.0.1:8000/AnyNameHere
+@app.get('/{name}')
+def get_name(name: str):
+    return {'Welcome': f'{name}'}
 
-@app.route('/predict_api',methods=['POST'])
-def predict_api():
-    data=request.json['data']
+# 3. Expose the prediction functionality, make a prediction from the passed
+#    JSON data and return the predicted Bank Note with the confidence
+@app.post('/predict')
+def predict_banknote(data:Churn):
+    data = data.dict()
     data = np.array(list(data.values())).reshape(1,-1)
     output = model.predict(data)
     print(output[0])
-    return jsonify(int(output[0]))
-    
-    
-    
+    #return jsonify(int(output[0]))
+
+    if ( output[0] == 0 ):
+        prediction="Not gonna churn"
+    else:
+        prediction="Gonna churn"
+    return {
+        'prediction': prediction
+    }
 
 
-
-if __name__=="__main__":
-    app.run(debug=True)
+# 5. Run the API with uvicorn
+#    Will run on http://127.0.0.1:8000
+if __name__ == '__main__':
+    uvicorn.run(app, host='127.0.0.1', port=8000)
+    
+#uvicorn app:app --reload
